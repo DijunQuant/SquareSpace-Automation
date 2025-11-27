@@ -1,0 +1,18 @@
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const presenterName = urlParams.get('SQF_PRESENTER');
+    const abstractTitle = urlParams.get('SQF_TITLE');
+
+    const presenterElement = document.getElementById('display-presenter');
+    const titleElement = document.getElementById('display-title');
+    
+    if (presenterElement && presenterName) {
+        presenterElement.textContent = presenterName;
+    }
+    if (titleElement && abstractTitle) {
+        titleElement.textContent = abstractTitle;
+    }
+});
+</script>
