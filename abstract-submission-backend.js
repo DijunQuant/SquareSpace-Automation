@@ -1,6 +1,6 @@
 <script>
-document.addEventListener("DOMContentLoaded", async () => {
-  function parseCookies() {
+(async function() {
+  function parseCookies() {
     return document.cookie.split(';')
       .map(kv => kv.split('='))
       .reduce((acc, [k, v]) => {
@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("no email");
     if (containerLogIn) {
       console.log("found container");
-      containerLogIn.innerHTML = `
+      containerLogIn.innerHTML =`
         <div style="text-align:center; padding:2em; border:1px solid #ddd; border-radius:8px;">
           <p style="font-size:1.2em;">You need to log in to view your abstracts.</p>
           <a href="/account/login" 
@@ -60,19 +60,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 2️⃣ Your Netlify function URL
   const netlifyFnUrl = "https://magenta-daifuku-ea2748.netlify.app/.netlify/functions/get-orders";
+const netlifyFnUrlForArt = "https://magenta-daifuku-ea2748.netlify.app/.netlify/functions/get-orders-art";
 
   try {
     // 3️⃣ Fetch orders from Netlify, passing email as query param
     const res = await fetch(`${netlifyFnUrl}?email=${encodeURIComponent(email)}`);
-    if (!res.ok) throw new Error(`Error fetching orders: ${res.status}`);
+    const resArt = await fetch(`${netlifyFnUrlForArt}?email=${encodeURIComponent(email)}`);
+    if (!res.ok) throw new Error('Error fetching orders: ${res.status}');
+if (!resArt.ok) throw new Error('Error fetching orders for artistis: ${resArt.status}');
 
     const orders = await res.json();
+const ordersArt= await resArt.json();
 
     // 4️⃣ Display orders
     const container = document.getElementById('order-info');
     if (!container) return;
 
-    if (!orders.length) {
+    if ((!orders.length)&&(!ordersArt.length)) {
       container.innerHTML = "<p>No orders found for this email.</p>";
       return;
     }
@@ -86,41 +90,67 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
       }
     });
-    const formKeys = Array.from(allKeys);
+const formKeys = Array.from(allKeys);
+const presenterKey = 'Product Form: Presenter';
+const titleKey = 'Product Form: Title';
+let html ="";
+orders.forEach((order, index) => {    
+    // Safely extract the values from the productFormFields object
+ const presenterName = order.productFormFields ? order.productFormFields[presenterKey] || '' : '';
+const abstractTitle = order.productFormFields ? order.productFormFields[titleKey] || '' : '';
 
-    // Table header
-    let html = "<table border='1' style='border-collapse: collapse; padding: 5px;'>";
-    html += "<thead><tr>";
-    html += "<th>Tag</th>";
-    html += "<th>Submit Date</th>";
-    formKeys.forEach(key => html += `<th>${key}</th>`);
-    html += "<th>Action</th></tr></thead><tbody>";
+ // Encode values for safe transmission in the URL
+    const encodedPresenter = encodeURIComponent(presenterName);
+    const encodedTitle = encodeURIComponent(abstractTitle);
+  
+ html += `<div class="order-details-block" style="margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 4px;"> <h4 style="margin-top: 0;">Order #${order.orderNumber || (index + 1)}</h4> <div style="margin: 3px 0;"><strong>Tag:</strong> ${order.tag}</div>    <div style="margin: 3px 0;"><strong>Submit Date:</strong> ${order.orderDate}</div>         <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">                     <h4 style="margin-top: 0; margin-bottom: 10px;">Submission Details:</h4>`;      
+formKeys.forEach(key => {         const fullKey = `Product Form: ${key}`;         const value = order.productFormFields ? order.productFormFields[fullKey] || 'N/A' : 'N/A';                
+ html += `<p><strong>${key}:</strong> ${value}</p>`;       });                  html += ` <form style="margin-top: 20px;">
+        <a href="/abstract-update?SQF_ORDER_NUMBER=${order.orderNumber}&SQF_PRESENTER=${encodedPresenter}&SQF_TITLE=${encodedTitle}"
+          style="padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block;">
+            Update / Withdraw
+        </a>
+    </form>        </div>         <br>       `;
+    });     
+//end of regualar order
 
-    // Table rows
-    orders.forEach(order => {
-      html += "<tr>";
-      html += `<td>${order.tag}</td>`;
-      html += `<td>${order.orderDate}</td>`;
+  // Build table headers dynamically from productFormFields keys
+    const allKeysArt = new Set();
+    ordersArt.forEach(order => {
+      if (order.productFormFields) {
+        Object.keys(order.productFormFields).forEach(k => {
+          allKeysArt.add(k); 
+        });
+      }})
+console.log(allKeysArt.add);
 
-      formKeys.forEach(key => {
-        const value = order.productFormFields 
-                      ? order.productFormFields[`Product Form: ${key}`] || ''
-                      : '';
-        html += `<td>${value}</td>`;
-      });
-        // Action button column
-  html += `<td>
-    <form method="POST" action="/your-form-handler-url">
-      <input type="hidden" name="orderNumber" value="${order.orderNumber}">
-      <button type="submit">Update / Withdraw</button>
-    </form>
-  </td>`
+const formKeysArt = Array.from(allKeysArt);
+const presenterKeyArt =  'Name';
+const titleKeyArt = 'Title';
 
-      html += "</tr>";
-    });
+ordersArt.forEach((order, index) => {    
+    // Safely extract the values from the productFormFields object
+ const presenterName = order.productFormFields ? order.productFormFields[presenterKeyArt] || '' : '';
+const abstractTitle = order.productFormFields ? order.productFormFields[titleKeyArt] || '' : '';
 
-    html += "</tbody></table>";
-    container.innerHTML = html;
+ // Encode values for safe transmission in the URL
+    const encodedPresenter = encodeURIComponent(presenterName);
+    const encodedTitle = encodeURIComponent(abstractTitle);
+  
+ html += `<div class="order-details-block" style="margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 4px;"><div style="margin: 3px 0;"><strong>Tag:</strong> ${order.tag}</div>    <div style="margin: 3px 0;"><strong>Submit Date:</strong> ${order.Date}</div>  <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">    <h4 style="margin-top: 0; margin-bottom: 10px;">Submission Details:</h4>`;      
+formKeysArt.forEach(key => {        const value = order.productFormFields ? order.productFormFields[key] || 'N/A' : 'N/A';                
+ html += `<p><strong>${key}:</strong> ${value}</p>`;       });                  html += ` <form style="margin-top: 20px;">
+        <a href="/abstract-update?SQF_ORDER_NUMBER=${order.orderNumber}&SQF_PRESENTER=${encodedPresenter}&SQF_TITLE=${encodedTitle}"
+          style="padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block;">
+            Update / Withdraw
+        </a>
+    </form>        </div>         <br>  `;
+    });    
+    ;  
+//end of artists order
+
+
+container.innerHTML = html;
 
   } catch (err) {
     console.error(err);
